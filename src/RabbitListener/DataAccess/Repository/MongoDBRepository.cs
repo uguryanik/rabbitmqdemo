@@ -7,44 +7,14 @@ using RabbitListener.DataAccess.Repository.Interface;
 
 namespace RabbitListener.DataAccess.Repository
 {
-    public class MongoClientWrapper : IMongoClientWrapper
-    {
-        private readonly IMongoClient _client;
-
-        public MongoClientWrapper(string connectionString)
-        {
-            _client = new MongoClient(connectionString);
-        }
-
-        public IMongoDatabaseWrapper GetDatabase(string databaseName)
-        {
-            return new MongoDatabaseWrapper(_client.GetDatabase(databaseName));
-        }
-    }
-
-    public class MongoDatabaseWrapper : IMongoDatabaseWrapper
-    {
-        private readonly IMongoDatabase _database;
-
-        public MongoDatabaseWrapper(IMongoDatabase database)
-        {
-            _database = database;
-        }
-
-        public IMongoCollection<T> GetCollection<T>(string name)
-        {
-            return _database.GetCollection<T>(name);
-        }
-    }
-
     public class MongoDBRepository : IMongoDBRepository
     {
         private readonly IMongoCollection<LogModel> _logCollection;
-        private IMongoClientWrapper _client;
+        private IMongoClient _client;
 
-        public MongoDBRepository(MongoDBSettings settings, IMongoClientWrapper client)
+        public MongoDBRepository(MongoDBSettings settings, IMongoClient client)
         {
-            var _client = client;
+            _client = client;
 
             if(_client != null)
             {

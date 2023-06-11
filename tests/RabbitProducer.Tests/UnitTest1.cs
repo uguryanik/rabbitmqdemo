@@ -20,7 +20,6 @@ namespace RabbitProducer.Tests
         [Fact]
         public async Task ExecuteAsync_ShouldSendCorrectRequests()
         {
-            // Arrange
             var loggerMock = new Mock<ILogger<Worker>>();
             var optionsMock = new Mock<IOptions<RabbitMQSettings>>();
             optionsMock.Setup(o => o.Value).Returns(new RabbitMQSettings { QueueName = "queueName" });
@@ -34,12 +33,10 @@ namespace RabbitProducer.Tests
             var worker = new Worker(loggerMock.Object,
                 httpClientMock.Object,
                 optionsMock.Object, 
-                //optionsMock.Object, 
                 connectionMock.Object, 
                 urls
                 );
 
-            // Act
             var stoppingTokenSource = new CancellationTokenSource();
             var workerTask = worker.StartAsync(stoppingTokenSource.Token);
                         

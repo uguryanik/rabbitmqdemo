@@ -8,12 +8,10 @@ namespace RabbitListener.Services
     public class LogService : ILogService
     {
         private readonly IMongoDBRepository _repository;
-        private readonly IMongoClientWrapper _clientWrapper;
 
-        public LogService(IMongoDBRepository repository, IMongoClientWrapper clientWrapper)
+        public LogService(IMongoDBRepository repository)
         {
             _repository = repository;
-            _clientWrapper = clientWrapper;
         }
 
         public async Task InsertLog(LogModel log)

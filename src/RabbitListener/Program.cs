@@ -11,6 +11,8 @@ using Serilog.Sinks.Elasticsearch;
 using Serilog.Formatting.Elasticsearch;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Driver;
 
 namespace RabbitListener
 {
@@ -32,18 +34,20 @@ namespace RabbitListener
                 {
                     IConfiguration configuration = hostContext.Configuration;
 
-                    // RabbitMQ settings
-                    var rabbitMQSettings = configuration.GetSection("RabbitMQ").Get<RabbitMQSettings>();
-                    services.Configure<RabbitMQSettings>(configuration.GetSection("RabbitMQ"));
-
-                    // MongoDB settings
                     var mongoDBSettings = configuration.GetSection("MongoDBSettings").Get<MongoDBSettings>();
                     services.Configure<MongoDBSettings>(configuration.GetSection("MongoDBSettings"));
 
                     services.AddSingleton<MongoDBSettings>(sp =>
                         sp.GetRequiredService<IOptions<MongoDBSettings>>().Value);
 
-                    // RabbitMQ connection
+
+                    services.AddSingleton<IMongoClient>(sp => { return new MongoClient(mongoDBSettings.ConnectionString); });
+
+                    services.AddSingleton<IMongoDBRepository, MongoDBRepository>();
+
+                    var rabbitMQSettings = configuration.GetSection("RabbitMQ").Get<RabbitMQSettings>();
+                    services.Configure<RabbitMQSettings>(configuration.GetSection("RabbitMQ"));
+
                     var factory = new ConnectionFactory()
                     {
                         Uri = new Uri(rabbitMQSettings.Hostname)
@@ -51,15 +55,8 @@ namespace RabbitListener
                     IConnection connection = factory.CreateConnection();
                     services.AddSingleton(connection);
 
-                    services.AddSingleton<IMongoClientWrapper, MongoClientWrapper>();
-                    services.AddSingleton<IMongoDatabaseWrapper, MongoDatabaseWrapper>();
-                    services.AddSingleton<IMongoDBRepository, MongoDBRepository>();
-
-
-                    // Log Service
                     services.AddSingleton<ILogService, LogService>();
 
-                    // Worker
                     services.AddHostedService<Worker>();
 
                     var elasticSettings = configuration.GetSection("ElasticSettings").Get<ElasticSettings>();

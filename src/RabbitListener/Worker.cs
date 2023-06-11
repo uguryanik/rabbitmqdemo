@@ -17,11 +17,11 @@ namespace RabbitListener
         private readonly IConnection _connection;
         private readonly IModel _channel;
         private const string QueueName = "urls";
-        private readonly IMongoDatabaseWrapper _databaseWrapper;
 
-        public Worker(ILogger<Worker> logger, ILogService logService, IConnection connection, IMongoDatabaseWrapper databaseWrapper)
+        public Worker(ILogger<Worker> logger, 
+            ILogService logService, 
+            IConnection connection)
         {
-            _databaseWrapper = databaseWrapper;
             _logger = logger;
             _logService = logService;
             _connection = connection;
@@ -35,30 +35,42 @@ namespace RabbitListener
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            stoppingToken.ThrowIfCancellationRequested();
+            _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
 
-            var consumer = new EventingBasicConsumer(_channel);
-            consumer.Received += async (ch, ea) =>
+            while (!stoppingToken.IsCancellationRequested)
             {
-                var content = Encoding.UTF8.GetString(ea.Body.Span);
-                var log = JsonConvert.DeserializeObject<LogModel>(content);
+                _logger.LogInformation("Waiting for messages...");
 
-                try
+                var consumer = new EventingBasicConsumer(_channel);
+                consumer.Received += async (ch, ea) =>
                 {
-                    await _logService.InsertLog(log);
-                    _logger.LogInformation($"Log inserted to MongoDB: {log}");
-                }
-                catch (Exception ex)
+                    _logger.LogInformation("Message received at: {time}", DateTimeOffset.Now);
+                    var content = Encoding.UTF8.GetString(ea.Body.Span);
+                    var log = JsonConvert.DeserializeObject<LogModel>(content);
+
+                    try
+                    {
+                        await _logService.InsertLog(log);
+                        _logger.LogInformation($"Log inserted to MongoDB: {log}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"An error occurred while inserting log to MongoDB: {log}");
+                    }
+
+                    _channel.BasicAck(ea.DeliveryTag, false);
+                };
+
+                _channel.BasicConsume(QueueName, false, consumer);
+
+                await Task.Delay(1000, stoppingToken);
+                                
+                if (stoppingToken.IsCancellationRequested)
                 {
-                    _logger.LogError(ex, $"An error occurred while inserting log to MongoDB: {log}");
+                    _channel.Close();
+                    _connection.Close();
                 }
-
-                _channel.BasicAck(ea.DeliveryTag, false);
-            };
-
-            _channel.BasicConsume(QueueName, false, consumer);
-
-            await Task.CompletedTask;
+            }
         }
 
         public override void Dispose()
